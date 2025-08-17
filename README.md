@@ -19,7 +19,7 @@ Cette application Streamlit permet de détecter des accidents à partir d'images
 
 1. **Cloner le projet** :
 ```bash
-git clone <votre-repo>
+git clone https://github.com/LilleBaro/Road_accident_detection.git
 cd FINAL
 ```
 
@@ -37,12 +37,16 @@ streamlit run app.py
 
 ```
 FINAL/
-├── app.py                    # Application Streamlit principale
-├── requirements.txt          # Dépendances Python
-├── README.md                # Ce fichier
 └── models/
     └── detection_accident.pt # Modèle YOLOV12 déjà entraîné
     └── yolo12s.pt
+└── notebooks
+├── pages                # differentes pages du sites 
+├── utils            
+├── app.py                    # Application Streamlit principale
+├── check_env.py                # Ce fichier
+├── README.md                # Ce fichier
+├── requirements.txt          # Dépendances Python
 ```
 
 ## 🎛️ Utilisation

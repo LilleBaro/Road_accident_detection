@@ -5,9 +5,6 @@ import io
 import numpy as np
 from PIL import Image
 
-# Note : on évite d'importer streamlit_webrtc, av, ultralytics au module level
-# pour réduire la surface d'import qui pourrait déclencher des libs natives incompatibles.
-
 def run_temps_reel():
     st.markdown(
         """
@@ -43,22 +40,21 @@ def run_temps_reel():
         snapshot_col = info_cols[1]
         status_col = info_cols[2]
 
-        # Si la caméra n'est pas activée, on arrête là.
         if not activate_cam:
             st.warning("Caméra désactivée — coche 'Activer la caméra' pour lancer le flux.")
             return
 
-        # Lazy imports — on importe ces modules seulement quand on veut vraiment la caméra
+        # Lazy imports
         try:
             import av
             from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
             from ultralytics import YOLO
         except Exception as e:
-            st.error(f"Impossible d'importer une dépendance nécessaire (av / streamlit_webrtc / ultralytics). Erreur : {e}")
-            st.caption("Vérifie que tu as bien installé : streamlit-webrtc, av, ultralytics.")
+            st.error(f"Impossible d'importer av / streamlit_webrtc / ultralytics. Erreur : {e}")
+            st.caption("Vérifie que streamlit-webrtc, av, ultralytics sont installés.")
             return
 
-        # Gestion du chargement du modèle dans st.session_state (lazy)
+        # Gestion du modèle YOLO
         cache_key = "yolo_cached_model_path"
         if cache_key not in st.session_state:
             st.session_state[cache_key] = None
@@ -83,7 +79,7 @@ def run_temps_reel():
             st.error("Modèle introuvable ou non chargé.")
             return
 
-        # Définit la classe transformer en utilisant recv() (nouvelle API)
+        # Définition du transformer
         class ObjectDetection(VideoTransformerBase):
             def __init__(self):
                 super().__init__()
@@ -96,27 +92,24 @@ def run_temps_reel():
                 self.fps = 0.0
 
             def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
-                # transform similaire à l'ancien transform()
                 img = frame.to_ndarray(format="bgr24")
 
                 try:
                     results = self.model.predict(img, conf=self.conf, verbose=False)
-                    plotted = results[0].plot()
+                    plotted = results[0].plot()  # généralement RGB
                 except Exception:
-                    # en cas d'erreur, on renvoie l'image d'origine
                     plotted = img
 
-                # Normaliser le format pour av.VideoFrame (BGR attendu)
+                # Conversion : forcer RGB si nécessaire
                 if isinstance(plotted, Image.Image):
-                    plotted = np.array(plotted)[:, :, ::-1]  # RGB -> BGR
-                else:
-                    # si numpy array, ultralytics retourne souvent RGB
-                    if plotted.shape[2] == 3:
-                        plotted = plotted[:, :, ::-1]  # RGB -> BGR
+                    plotted = np.array(plotted)
+                if isinstance(plotted, np.ndarray) and plotted.shape[2] == 3:
+                    # Si le flux est en BGR, convertir en RGB
+                    plotted = plotted[..., ::-1]
 
                 self.last_frame = plotted
 
-                # calcul FPS
+                # Calcul FPS
                 now = time.time()
                 if self.prev_time is not None:
                     dt = now - self.prev_time
@@ -125,7 +118,7 @@ def run_temps_reel():
                         self.fps = 0.9 * self.fps + 0.1 * fps_now if self.fps else fps_now
                 self.prev_time = now
 
-                return av.VideoFrame.from_ndarray(plotted, format="bgr24")
+                return av.VideoFrame.from_ndarray(plotted, format="rgb24")
 
         # Démarrage du streamer
         ctx = webrtc_streamer(
@@ -156,8 +149,7 @@ def run_temps_reel():
                 if last is None:
                     st.warning("Aucune frame disponible (attends le flux).")
                 else:
-                    img_rgb = last[:, :, ::-1]
-                    pil_img = Image.fromarray(img_rgb)
+                    pil_img = Image.fromarray(last)  # last est déjà RGB
                     buf = io.BytesIO()
                     pil_img.save(buf, format="PNG")
                     st.image(pil_img, caption="Snapshot", use_container_width=True)
@@ -165,4 +157,4 @@ def run_temps_reel():
             else:
                 st.warning("Flux non disponible — attends quelques secondes.")
 
-        st.caption("Remarque : l'inférence en temps réel utilise des ressources CPU. Pour du vrai temps réel, exécute avec GPU.")
+        st.caption("Remarque : l'inférence en temps réel utilise CPU/GPU selon la configuration")
