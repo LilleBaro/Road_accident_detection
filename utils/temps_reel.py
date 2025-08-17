@@ -149,7 +149,7 @@ def run_temps_reel():
                 if last is None:
                     st.warning("Aucune frame disponible (attends le flux).")
                 else:
-                    pil_img = Image.fromarray(last)  # last est déjà RGB
+                    pil_img = Image.fromarray(last)  
                     buf = io.BytesIO()
                     pil_img.save(buf, format="PNG")
                     st.image(pil_img, caption="Snapshot", use_container_width=True)
