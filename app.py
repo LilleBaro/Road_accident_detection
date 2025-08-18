@@ -77,7 +77,6 @@ if selected == "Home":
 
 
 elif selected == "A propos":
-    st.title("A propos de notre application")
 
     st.title("À propos de l'application")
     st.markdown("""
